@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="media/visualvibe_biglogo.jpg" alt="VisualVibe Agent" width="720" />
+</p>
+
 # 🧠 VisualVibe Agent
 
 VisualVibe Agent is a containerized, web-native development environment running on **AlmaLinux 10**. It delivers a high-performance desktop experience directly in the browser via **KasmVNC** (port 8080), featuring **Visual Studio Code** equipped with the **Cline AI agent** extension, paired with **FileBrowser Quantum** (port 8081) for file management.
