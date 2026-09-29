@@ -41,7 +41,9 @@ if [ ! -d "$workdirs" ]; then
     echo "[Init] Creating workspace directory: $workdirs"
     mkdir -p "$workdirs"
 fi
-chown -R vvagent:vvagent "$workdirs"
+# Only fix ownership on the workdir itself — NOT recursively.
+# Recursive chown would walk the entire workspace on every boot.
+chown vvagent:vvagent "$workdirs"
 
 # 4. Configure Openbox Window Manager and Browser Launcher
 echo "[Init] Configuring Openbox window manager and desktop shortcuts..."
@@ -59,8 +61,6 @@ if [ ! -f /home/vvagent/.config/openbox/rc.xml ] || ! grep -q "open-browser" /ho
 fi
 if [ -f /etc/visualvibe/scripts/openbox-autostart ]; then
     cp /etc/visualvibe/scripts/openbox-autostart /home/vvagent/.config/openbox/autostart
-elif [ -f /etc/visualvibe/openbox-autostart ]; then
-    cp /etc/visualvibe/openbox-autostart /home/vvagent/.config/openbox/autostart
 fi
 chmod +x /home/vvagent/.config/openbox/autostart
 chown -R vvagent:vvagent /home/vvagent/.config/openbox
@@ -171,7 +171,9 @@ try:
             "telemetryOptOut": True,
             "autoUpdateEnabled": False,
             "planActMode": "act",
-            "toolAutoApprove": True
+            "toolAutoApprove": True,
+            "mcpEnabled": True,
+            "mcpDisplayMode": "rich"
         }, f, indent=2)
 except Exception as e:
     pass
@@ -221,6 +223,8 @@ gs.update({
     "actModeApiProvider": "openai",
     "apiProvider": "openai",
     "telemetrySetting": "disabled",
+    "mcpEnabled": True,
+    "mcpDisplayMode": "rich",
     "autoApprovalSettings": auto_approval,
     "browserSettings": {
         "viewport": {"width": 1280, "height": 800},
@@ -328,11 +332,15 @@ try:
         "saoudrizwan.claude-dev.lastDismissedModelBannerVersion": "999",
         "saoudrizwan.claude-dev.lastDismissedCliBannerVersion": "999",
 
-        # Mode and auto-approval (Full Access)
+        # Mode, auto-approval, and MCP (Full Access + Rich Text)
         "mode": json.dumps("act"),
         "saoudrizwan.claude-dev.mode": json.dumps("act"),
         "autoApprovalSettings": json.dumps(auto_approval),
         "saoudrizwan.claude-dev.autoApprovalSettings": json.dumps(auto_approval),
+        "mcpEnabled": json.dumps(True),
+        "saoudrizwan.claude-dev.mcpEnabled": json.dumps(True),
+        "mcpDisplayMode": json.dumps("rich"),
+        "saoudrizwan.claude-dev.mcpDisplayMode": json.dumps("rich"),
 
         # API Configuration
         "apiProvider": json.dumps("openai"),
@@ -353,6 +361,8 @@ try:
             "actModeApiProvider": "openai",
             "mode": "act",
             "telemetrySetting": "disabled",
+            "mcpEnabled": True,
+            "mcpDisplayMode": "rich",
             "lastShownAnnouncementId": "4.1.21"
         }),
 

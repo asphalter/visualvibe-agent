@@ -43,6 +43,7 @@ VisualVibe Agent/
 ├── media/
 │   ├── visualvibe_icon.png        # Official high-contrast square logo & icon
 │   ├── visualvibe_horizontal.png  # High-contrast horizontal banner (sidebar logo)
+│   ├── visualvibe_biglogo.jpg     # Full VisualVibe Agent neon banner (README header)
 │   ├── favicon.ico                # Multi-layer Windows / browser tab favicon
 │   └── favicon_*.png              # Multi-resolution favicons (16x16 to 192x192)
 ├── scripts/
@@ -133,8 +134,81 @@ podman logs -f visualvibe-agent
 
 ---
 
-## 🛡️ Security Model
+## 🛡️ Security & Reverse Proxy Configuration
 
-- **Perimeter Security**: Container services (KasmVNC and FileBrowser) run without internal authentication to optimize performance and prevent double-login friction. Access should be secured via **Cloudflare Zero Trust / Access**, a reverse proxy with OAuth2/mTLS, or a private VPN (Tailscale/WireGuard).
-- **Least Privilege**: The inner environment executes under UID `1000` (`vvagent`). Nested rootless Podman isolates containers run inside the development environment.
+### Internal Ports
+
+VisualVibe Agent exposes **two HTTP services** without built-in authentication:
+
+| Service | Container Port | Protocol | Description |
+|---|---|---|---|
+| **VisualVibe Agent** (KasmVNC) | `8080` | HTTP + WebSocket | Web desktop (HTML5/WebSocket streaming) |
+| **VisualVibe FileBrowser** | `8081` | HTTP | Web file manager (upload/download) |
+
+> [!IMPORTANT]
+> Both services run **unauthenticated** by design. Authentication must be enforced at the perimeter via a reverse proxy with SSO/SAML/OAuth2.
+
+### Reverse Proxy Routing
+
+Configure your load balancer or reverse proxy to expose a single HTTPS domain:
+
+| Public URL | Backend Target | Notes |
+|---|---|---|
+| `https://<DOMAIN>/` | `http://<CONTAINER_IP>:8080/` | KasmVNC desktop — requires WebSocket upgrade |
+| `https://<DOMAIN>/filebrowser/` | `http://<CONTAINER_IP>:8081/filebrowser/` | FileBrowser Quantum — standard HTTP |
+
+#### WebSocket Requirements (KasmVNC)
+
+KasmVNC uses WebSocket for the VNC stream. Your reverse proxy **must** support WebSocket upgrades on the root path `/`. Example headers to set:
+
+```
+Upgrade: $http_upgrade
+Connection: "upgrade"
+```
+
+#### Nginx Example
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name vvagent.example.com;
+
+    # SSO/SAML authentication (e.g. via Vouch, oauth2-proxy, or SAML SP module)
+    # auth_request /validate;
+
+    # VisualVibe Agent (KasmVNC) — WebSocket required
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    # VisualVibe FileBrowser
+    location /filebrowser/ {
+        proxy_pass http://127.0.0.1:8081/filebrowser/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        client_max_body_size 10G;  # Allow large file uploads
+    }
+}
+```
+
+#### Cloudflare Zero Trust Example
+
+If using **Cloudflare Access** as the SSO layer:
+
+1. Create an **Access Application** for `vvagent.example.com` with your IdP (SAML, OIDC, GitHub, etc.)
+2. Create a **Cloudflare Tunnel** pointing to `http://localhost:8080` for the root path
+3. Add a second **public hostname rule**: `vvagent.example.com/filebrowser/*` → `http://localhost:8081`
+4. Cloudflare handles TLS termination, SSO enforcement, and WebSocket proxying natively
+
+### Security Model
+
+- **Perimeter Security**: All access control (SSO/SAML/OAuth2/mTLS) is enforced at the reverse proxy layer. Container services are deliberately unauthenticated to avoid double-login friction.
+- **Least Privilege**: The inner environment runs under UID `1000` (`vvagent`). Nested rootless Podman isolates containers run inside the development environment.
 - **VS Code Restart Opt-out**: To prevent VS Code from auto-restarting (e.g., to use the desktop without it), create the file `/tmp/.vscode_no_restart` inside the container.
