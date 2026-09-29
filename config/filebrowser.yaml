@@ -1,0 +1,27 @@
+# ==============================================================================
+# FileBrowser Quantum Configuration for VisualVibe Agent
+# ==============================================================================
+# Streamlined configuration for FileBrowser Quantum (gtsteffaniak/filebrowser).
+# Authentication (passwords, 2FA/TOTP, LDAP, OIDC) is completely disabled (noauth)
+# because access control is enforced at the perimeter (Cloudflare Access / VPN).
+# ==============================================================================
+
+server:
+  port: 8081
+  baseURL: "/filebrowser"
+  # FIX F-01: DB moved from /tmp (lost on restart) to persistent volume.
+  # /home/vvagent is mounted as a named volume, so this survives container restarts.
+  database: "/home/vvagent/.local/share/filebrowser/filebrowser.db"
+  cacheDir: "/tmp/filebrowser_cache"
+  sources:
+    - name: "VisualVibe Workspace"
+      path: "/home/vvagent/VisualVibe Workdirs"
+
+auth:
+  methods:
+    noauth: true
+
+frontend:
+  name: "VisualVibe Filebrowser"
+  description: "VisualVibe Agent Web File Manager"
+  favicon: "/etc/visualvibe/media/favicon_32x32.png"

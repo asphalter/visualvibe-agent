@@ -1,0 +1,51 @@
+[Unit]
+Description=VisualVibe Agent — Web Desktop (KasmVNC + VS Code + Cline)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/visualvibe-agent:latest
+ContainerName=visualvibe-agent
+
+# --- Network: Publish ports to host (8080: Desktop, 8081: FileBrowser) ---
+PublishPort=8080:8080
+PublishPort=8081:8081
+
+# --- Podman-in-Podman (rootless container runtime) ---
+AddCapability=SYS_ADMIN
+AddCapability=MKNOD
+AddDevice=/dev/fuse
+SecurityLabelDisable=true
+
+# --- Resource allocation ---
+ShmSize=2g
+
+# --- AI Agent Configuration ---
+# URL of the external AI API endpoint (OpenAI-Compatible).
+# Cline will connect to this endpoint for AI requests.
+# Leave empty to configure manually from the Cline UI.
+Environment=AI_API_URL=
+
+# API Key for the external AI endpoint (leave empty if not required)
+Environment=AI_API_KEY=
+
+# Default model ID for the AI endpoint (optional, e.g. gpt-4o, claude-3-5-sonnet, deepseek-coder)
+Environment=AI_MODEL_ID=
+
+# --- Persistent volume for /home/vvagent ---
+Volume=visualvibe-home.volume:/home/vvagent
+
+# --- Health check for KasmVNC HTTP server ---
+HealthCmd=curl -fsSo /dev/null http://localhost:8080/ || exit 1
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=20s
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,54 @@
+#!/bin/bash
+# Openbox autostart script for VisualVibe Agent
+
+# Disable X11 screensaver and display power management
+xset s off 2>/dev/null || true
+xset -dpms 2>/dev/null || true
+
+# Launch VS Code in a resilient loop (auto-restart if unexpectedly closed)
+(
+  # Wait for window manager initialization
+  sleep 2
+  while true; do
+    # FIX A-01: Allow user to opt out of auto-restart by touching /tmp/.vscode_no_restart
+    # This lets users close VS Code intentionally without it being relaunched immediately.
+    if [ -f /tmp/.vscode_no_restart ]; then
+      sleep 5
+      continue
+    fi
+    if ! pgrep -u vvagent -f "/usr/share/code" >/dev/null 2>&1; then
+      echo "[Openbox] Starting VS Code in /home/vvagent/VisualVibe Workdirs..."
+      /usr/bin/code "/home/vvagent/VisualVibe Workdirs" --no-sandbox --disable-gpu --disable-dev-shm-usage --skip-welcome &
+      
+      # Spawn background supervisor to maximize window and activate Cline view
+      (
+        # Wait for VS Code main window to appear
+        for _w in {1..30}; do
+          if wmctrl -l 2>/dev/null | grep -q "VisualVibe Agent\|Visual Studio Code"; then
+            break
+          fi
+          sleep 0.5
+        done
+
+        # Ensure window is maximized
+        sleep 1
+        wmctrl -r "VisualVibe Agent" -b add,maximized_vert,maximized_horz 2>/dev/null || \
+        wmctrl -x -r "com.microsoft.VSCode" -b add,maximized_vert,maximized_horz 2>/dev/null || true
+
+        # Robust activation: trigger Cline focus and awaken webview
+        for _delay in 2 4 7; do
+          sleep "$_delay"
+          xdotool search --onlyvisible --class "code" windowactivate 2>/dev/null || true
+          xdotool key --clearmodifiers ctrl+alt+c 2>/dev/null || true
+          sleep 0.5
+          read -r _W _H <<< "$(xdotool getdisplaygeometry 2>/dev/null || echo '1920 1080')"
+          _target_x=$(( _W - 200 ))
+          _target_y=$(( _H / 2 ))
+          xdotool mousemove "$_target_x" "$_target_y" click 1 2>/dev/null || true
+          xdotool mousemove $(( _W / 2 )) $(( _H / 2 )) 2>/dev/null || true
+        done
+      ) &
+    fi
+    sleep 3
+  done
+) &
