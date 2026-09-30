@@ -350,7 +350,7 @@ browser_actions_script = (
 if horizontal_asset_url:
     sidebar_brand_content = (
         f'<img src="{horizontal_asset_url}" '
-        'style="height: 50px !important; width: auto !important; max-width: 98% !important; '
+        'style="height: 56px !important; width: auto !important; max-width: 98% !important; '
         'object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.4)); display: block; margin: 0 auto;" '
         'alt="VisualVibe Agent">'
     )
@@ -489,7 +489,7 @@ for css_file in glob.glob(os.path.join(assets_dir, "ui-*.css")):
         '#noVNC_displays:not(.noVNC_open){display:none !important;visibility:hidden !important;}\n'
         '#noVNC_displays.noVNC_open{display:flex !important;visibility:visible !important;z-index:1000 !important;}\n'
         '#noVNC_control_bar .noVNC_logo{display:flex !important;align-items:center !important;justify-content:center !important;padding:6px 8px !important;margin:4px 0 6px 0 !important;}\n'
-        '#noVNC_control_bar .noVNC_logo img{width:auto !important;max-width:98% !important;height:50px !important;object-fit:contain !important;}\n'
+        '#noVNC_control_bar .noVNC_logo img{width:auto !important;max-width:98% !important;height:56px !important;object-fit:contain !important;}\n'
     )
     if '/* VisualVibe Agent: UI layout and theme overrides */' not in css_patched:
         css_patched += override_rules
