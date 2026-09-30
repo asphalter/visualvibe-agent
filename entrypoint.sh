@@ -83,7 +83,6 @@ chown -R vvagent:vvagent /home/vvagent/.vscode
 #    - Disable workspace trust prompts and pre-seed workspace auxiliary bar state
 ai_api_url="${AI_API_URL:-}"
 ai_api_key="${AI_API_KEY:-}"
-ai_model_id="${AI_MODEL_ID:-}"
 echo "[Init] Configuring Cline (auto-approval + AI endpoint + right sidebar layout)..."
 python3 -c '
 import json, os, glob, sqlite3
@@ -92,7 +91,6 @@ from datetime import datetime, timezone
 home     = "/home/vvagent"
 api_url  = os.environ.get("AI_API_URL", "").strip()
 api_key  = os.environ.get("AI_API_KEY", "").strip()
-model_id = os.environ.get("AI_MODEL_ID", "").strip()
 
 # ── 1. Patch Cline package.json: Move to Secondary Side Bar & Enable Auto-Activate ──
 for pkg_path in glob.glob(os.path.join(home, ".vscode/extensions/saoudrizwan.claude-dev-*/package.json")):
@@ -128,8 +126,7 @@ if api_url:
     openai_cfg["baseUrl"] = api_url
 if api_key:
     openai_cfg["apiKey"] = api_key
-if model_id:
-    openai_cfg["model"] = model_id
+openai_cfg["model"] = "visualvibe-act"
 
 openai_compatible_cfg = {
     "provider": "openai-compatible",
@@ -139,8 +136,7 @@ if api_url:
     openai_compatible_cfg["baseUrl"] = api_url
 if api_key:
     openai_compatible_cfg["apiKey"] = api_key
-if model_id:
-    openai_compatible_cfg["model"] = model_id
+openai_compatible_cfg["model"] = "visualvibe-act"
 
 providers_data = {
     "version": 1,
@@ -229,16 +225,16 @@ gs.update({
     "browserSettings": {
         "viewport": {"width": 1280, "height": 800},
         "headless": False
-    }
+    },
+    "planActSeparateModelsSetting": True
 })
 if api_url:
     gs["openAiBaseUrl"] = api_url
-if model_id:
-    gs["openAiModelId"] = model_id
-    gs["planModeOpenAiModelId"] = model_id
-    gs["actModeOpenAiModelId"] = model_id
-    gs["planModeApiModelId"] = model_id
-    gs["actModeApiModelId"] = model_id
+gs["openAiModelId"] = "visualvibe-act"
+gs["planModeOpenAiModelId"] = "visualvibe-plan"
+gs["actModeOpenAiModelId"] = "visualvibe-act"
+gs["planModeApiModelId"] = "visualvibe-plan"
+gs["actModeApiModelId"] = "visualvibe-act"
 
 try:
     with open(gs_path, "w", encoding="utf-8") as f:
@@ -309,9 +305,9 @@ try:
         "actModeApiProvider":     "openai",
         "openAiBaseUrl":          api_url,
         "openAiApiKey":           api_key,
-        "openAiModelId":          model_id,
-        "planModeOpenAiModelId":  model_id,
-        "actModeOpenAiModelId":   model_id
+        "openAiModelId":          "visualvibe-act",
+        "planModeOpenAiModelId":  "visualvibe-plan",
+        "actModeOpenAiModelId":   "visualvibe-act"
     }
 
     aux_panel_id = "workbench.view.extension.claude-dev-ActivityBar"
@@ -335,6 +331,8 @@ try:
         # Mode, auto-approval, and MCP (Full Access + Rich Text)
         "mode": json.dumps("act"),
         "saoudrizwan.claude-dev.mode": json.dumps("act"),
+        "planActSeparateModelsSetting": json.dumps(True),
+        "saoudrizwan.claude-dev.planActSeparateModelsSetting": json.dumps(True),
         "autoApprovalSettings": json.dumps(auto_approval),
         "saoudrizwan.claude-dev.autoApprovalSettings": json.dumps(auto_approval),
         "mcpEnabled": json.dumps(True),
@@ -363,7 +361,11 @@ try:
             "telemetrySetting": "disabled",
             "mcpEnabled": True,
             "mcpDisplayMode": "rich",
-            "lastShownAnnouncementId": "4.1.21"
+            "lastShownAnnouncementId": "4.1.21",
+            "planActSeparateModelsSetting": True,
+            "openAiModelId": "visualvibe-act",
+            "planModeOpenAiModelId": "visualvibe-plan",
+            "actModeOpenAiModelId": "visualvibe-act"
         }),
 
         # Layout: Auxiliary bar (Secondary Side Bar on the right)
@@ -383,13 +385,12 @@ try:
         items["secret://{\"extensionId\":\"saoudrizwan.claude-dev\",\"key\":\"apiKey\"}"] = api_key
         items["secret://openAiApiKey"] = api_key
         items["secret://saoudrizwan.claude-dev.openAiApiKey"] = api_key
-    if model_id:
-        items["openAiModelId"] = json.dumps(model_id)
-        items["saoudrizwan.claude-dev.openAiModelId"] = json.dumps(model_id)
-        items["planModeOpenAiModelId"] = json.dumps(model_id)
-        items["saoudrizwan.claude-dev.planModeOpenAiModelId"] = json.dumps(model_id)
-        items["actModeOpenAiModelId"] = json.dumps(model_id)
-        items["saoudrizwan.claude-dev.actModeOpenAiModelId"] = json.dumps(model_id)
+    items["openAiModelId"] = json.dumps("visualvibe-act")
+    items["saoudrizwan.claude-dev.openAiModelId"] = json.dumps("visualvibe-act")
+    items["planModeOpenAiModelId"] = json.dumps("visualvibe-plan")
+    items["saoudrizwan.claude-dev.planModeOpenAiModelId"] = json.dumps("visualvibe-plan")
+    items["actModeOpenAiModelId"] = json.dumps("visualvibe-act")
+    items["saoudrizwan.claude-dev.actModeOpenAiModelId"] = json.dumps("visualvibe-act")
 
     for k, v in items.items():
         cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (k, v))
@@ -400,6 +401,7 @@ try:
 except Exception as e:
     print(f"[Init] Warning: Could not configure Cline state DB: {e}")
 ' 2>/dev/null || true
+
 
 # ── 6. Pre-configure VS Code settings and keybindings ───────────────────────
 mkdir -p /home/vvagent/.config/Code/User

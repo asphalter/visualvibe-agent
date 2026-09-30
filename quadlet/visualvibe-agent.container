@@ -29,8 +29,6 @@ Environment=AI_API_URL=
 # API Key for the external AI endpoint (leave empty if not required)
 Environment=AI_API_KEY=
 
-# Default model ID for the AI endpoint (optional, e.g. gpt-4o, claude-3-5-sonnet, deepseek-coder)
-Environment=AI_MODEL_ID=
 
 # --- Persistent volume for /home/vvagent ---
 Volume=visualvibe-home.volume:/home/vvagent

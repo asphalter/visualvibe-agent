@@ -62,13 +62,25 @@ VisualVibe Agent/
 
 | Variable | Default | Description |
 |---|---|---|
-| `AI_API_URL` | *(empty)* | Base URL for the external AI API endpoint (OpenAI-compatible) |
+| `AI_API_URL` | *(empty)* | Base URL for the external AI API endpoint (OpenAI-compatible, e.g. OmniRoute) |
 | `AI_API_KEY` | *(empty)* | Optional API key for authenticating against the AI endpoint |
-| `AI_MODEL_ID` | *(empty)* | Default model ID for the AI endpoint (e.g. `gpt-4o`, `claude-3-5-sonnet`) |
 | `VISUALVIBE_PORT` | `8080` | Host port for the KasmVNC Web Desktop |
 | `VISUALVIBE_FB_PORT` | `8081` | Host port for FileBrowser Quantum |
 | `VISUALVIBE_CONTAINER`| `visualvibe-agent` | Name of the running container instance |
 | `VISUALVIBE_VOLUME` | `visualvibe-home` | Podman persistent volume name |
+
+### Cline AI Model Routing
+
+Cline is pre-configured with **"Use different models for Plan and Act modes"** enabled.
+The following OmniRoute combo names are hardcoded at boot:
+
+| Mode | OmniRoute Combo ID | Purpose |
+|---|---|---|
+| **Plan** | `visualvibe-plan` | Deep reasoning, architectural planning, strategy |
+| **Act** | `visualvibe-act` | Fast execution, tool-calling, code writing, refactoring |
+
+These combo names are sent as the `model` field in the OpenAI-compatible API request.
+OmniRoute resolves them to the actual provider/model based on its combo configuration (e.g. primary → Antigravity Pool, fallback → Oneprovider).
 
 ---
 

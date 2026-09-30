@@ -29,7 +29,6 @@ HOST_PORT="${VISUALVIBE_PORT:-8080}"
 FILEBROWSER_PORT="${VISUALVIBE_FB_PORT:-8081}"
 AI_API_URL="${AI_API_URL:-}"
 AI_API_KEY="${AI_API_KEY:-}"
-AI_MODEL_ID="${AI_MODEL_ID:-}"
 # FIX R-01: --no-build flag skips the image build step for faster restarts
 SKIP_BUILD=false
 for _arg in "$@"; do
@@ -119,7 +118,6 @@ podman run -d \
     --shm-size=2g \
     -e AI_API_URL="${AI_API_URL}" \
     -e AI_API_KEY="${AI_API_KEY}" \
-    -e AI_MODEL_ID="${AI_MODEL_ID}" \
     -v "${VOLUME_NAME}:/home/vvagent" \
     -p "${HOST_PORT}:8080" \
     -p "${FILEBROWSER_PORT}:8081" \
