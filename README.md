@@ -103,15 +103,19 @@ The `AI_LANG` environment variable configures Cline's native **Preferred Languag
 ### Cline AI Model Routing
 
 Cline is pre-configured with **"Use different models for Plan and Act modes"** enabled.
-The following OmniRoute combo names are hardcoded at boot:
+The container automatically configures the following model IDs at startup:
 
-| Mode | OmniRoute Combo ID | Purpose |
+| Mode | Model ID | Purpose |
 |---|---|---|
 | **Plan** | `visualvibe-plan` | Deep reasoning, architectural planning, strategy |
 | **Act** | `visualvibe-act` | Fast execution, tool-calling, code writing, refactoring |
 
-These combo names are sent as the `model` field in the OpenAI-compatible API request.
-OmniRoute resolves them to the actual provider/model based on its combo configuration (e.g. primary → Antigravity Pool, fallback → Oneprovider).
+These identifiers are sent directly as the `model` parameter in all OpenAI-compatible API requests directed to `AI_API_URL`.
+
+> [!IMPORTANT]
+> **User Responsibility — Agnostic Proxy Configuration**:
+> It is the user's responsibility to set up and configure an agnostic proxy (such as **OmniRoute**, **LiteLLM**, **One API**, or similar alternatives) at the endpoint pointed to by `AI_API_URL`.
+> The proxy must expose the two virtual model names (`visualvibe-plan` and `visualvibe-act`) and handle routing incoming requests to your desired upstream providers (e.g. Anthropic, OpenAI, DeepSeek, Google) and model targets according to your routing, fallback, and load-balancing strategy.
 
 ---
 
@@ -121,11 +125,6 @@ OmniRoute resolves them to the actual provider/model based on its combo configur
 To build the container image directly with Podman:
 ```bash
 sudo podman build -t visualvibe-agent .
-```
-
-To display the ASCII art banner every time regardless of layer cache:
-```bash
-sudo podman build --build-arg BANNER_CACHEBUST=$(date +%s) -t visualvibe-agent .
 ```
 
 ### Running Locally
