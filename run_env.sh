@@ -29,6 +29,7 @@ HOST_PORT="${VISUALVIBE_PORT:-8080}"
 FILEBROWSER_PORT="${VISUALVIBE_FB_PORT:-8081}"
 AI_API_URL="${AI_API_URL:-}"
 AI_API_KEY="${AI_API_KEY:-}"
+AI_LANG="${AI_LANG:-}"
 # FIX R-01: --no-build flag skips the image build step for faster restarts
 SKIP_BUILD=false
 for _arg in "$@"; do
@@ -66,7 +67,27 @@ echo -e "  Container:           ${BOLD}${CONTAINER_NAME}${NC}"
 echo -e "  Home Volume:         ${BOLD}${VOLUME_NAME}${NC}"
 echo -e "  AI API URL:          ${BOLD}${AI_API_URL:-<not set>}${NC}"
 echo -e "  AI API Key:          ${BOLD}${AI_API_KEY:+<configured>}${AI_API_KEY:-<not set>}${NC}"
+echo -e "  AI Language:         ${BOLD}${AI_LANG:-<not set>}${NC}"
 echo ""
+
+# Validate mandatory environment variables
+MISSING_VARS=()
+[ -z "${AI_LANG:-}" ] && MISSING_VARS+=("AI_LANG")
+[ -z "${AI_API_KEY:-}" ] && MISSING_VARS+=("AI_API_KEY")
+[ -z "${AI_API_URL:-}" ] && MISSING_VARS+=("AI_API_URL")
+
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+    echo -e "${RED}[FATAL ERROR] Startup aborted: missing required environment variable(s):${NC}" >&2
+    for var in "${MISSING_VARS[@]}"; do
+        echo -e "  - ${BOLD}$var${NC}" >&2
+    done
+    echo "" >&2
+    echo -e "${YELLOW}Reason:${NC} AI_LANG, AI_API_KEY, and AI_API_URL must be configured before running VisualVibe Agent." >&2
+    echo -e "${YELLOW}Example:${NC} AI_LANG=en AI_API_KEY=sk-... AI_API_URL=https://api.openai.com/v1 ./run_env.sh" >&2
+    echo "" >&2
+    exit 1
+fi
+
 
 # --------------------------------------------------------------------------
 # 1. Build container image
@@ -118,6 +139,7 @@ podman run -d \
     --shm-size=2g \
     -e AI_API_URL="${AI_API_URL}" \
     -e AI_API_KEY="${AI_API_KEY}" \
+    -e AI_LANG="${AI_LANG}" \
     -v "${VOLUME_NAME}:/home/vvagent" \
     -p "${HOST_PORT}:8080" \
     -p "${FILEBROWSER_PORT}:8081" \

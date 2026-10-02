@@ -11,24 +11,23 @@ ContainerName=visualvibe-agent
 PublishPort=8080:8080
 PublishPort=8081:8081
 
-# --- Podman-in-Podman (rootless container runtime) ---
-AddCapability=SYS_ADMIN
-AddCapability=MKNOD
+# --- Podman-in-Podman (privileged mode required for nested container runtime) ---
+PodmanArgs=--privileged
 AddDevice=/dev/fuse
-SecurityLabelDisable=true
 
 # --- Resource allocation ---
 ShmSize=2g
 
-# --- AI Agent Configuration ---
-# URL of the external AI API endpoint (OpenAI-Compatible).
-# Cline will connect to this endpoint for AI requests.
-# Leave empty to configure manually from the Cline UI.
+# --- AI Agent Configuration (MANDATORY) ---
+# All three variables must be set. The container will abort startup if any are missing.
+# URL of the external AI API endpoint (OpenAI-Compatible, e.g. OmniRoute)
 Environment=AI_API_URL=
 
-# API Key for the external AI endpoint (leave empty if not required)
+# API Key for the external AI endpoint
 Environment=AI_API_KEY=
 
+# Preferred language for Cline (e.g. it, en, es, fr, de, etc.)
+Environment=AI_LANG=
 
 # --- Persistent volume for /home/vvagent ---
 Volume=visualvibe-home.volume:/home/vvagent

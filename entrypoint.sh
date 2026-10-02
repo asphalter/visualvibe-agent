@@ -6,6 +6,29 @@ if [ $# -gt 0 ]; then
     exec "$@"
 fi
 
+# 0. Validate mandatory environment variables
+missing_vars=()
+[ -z "${AI_LANG:-}" ] && missing_vars+=("AI_LANG")
+[ -z "${AI_API_KEY:-}" ] && missing_vars+=("AI_API_KEY")
+[ -z "${AI_API_URL:-}" ] && missing_vars+=("AI_API_URL")
+
+if [ ${#missing_vars[@]} -gt 0 ]; then
+    echo "==========================================================" >&2
+    echo " [FATAL ERROR] Container startup aborted!" >&2
+    echo "==========================================================" >&2
+    echo " Exception: Missing required environment variable(s):" >&2
+    for var in "${missing_vars[@]}"; do
+        echo "   - $var" >&2
+    done
+    echo "" >&2
+    echo " Reason: VisualVibe Agent requires AI_LANG, AI_API_KEY, and AI_API_URL" >&2
+    echo " to be configured before starting the environment." >&2
+    echo " Example:" >&2
+    echo "   -e AI_LANG=en -e AI_API_KEY=sk-... -e AI_API_URL=https://api.openai.com/v1" >&2
+    echo "==========================================================" >&2
+    exit 1
+fi
+
 # Print official VisualVibe Agent neon banner on container startup
 if [ -f /etc/visualvibe/scripts/print_banner.sh ]; then
     bash /etc/visualvibe/scripts/print_banner.sh
@@ -84,13 +107,39 @@ chown -R vvagent:vvagent /home/vvagent/.vscode
 ai_api_url="${AI_API_URL:-}"
 ai_api_key="${AI_API_KEY:-}"
 echo "[Init] Configuring Cline (auto-approval + AI endpoint + right sidebar layout)..."
-python3 -c '
+python3 << 'PYEOF'
 import json, os, glob, sqlite3
 from datetime import datetime, timezone
 
 home     = "/home/vvagent"
 api_url  = os.environ.get("AI_API_URL", "").strip()
 api_key  = os.environ.get("AI_API_KEY", "").strip()
+ai_lang  = os.environ.get("AI_LANG", "").strip()
+
+# Resolve Preferred Language for Cline from AI_LANG
+LANG_MAP = {
+    "en": "English",
+    "it": "Italian - Italiano",
+    "es": "Spanish - Español",
+    "fr": "French - Français",
+    "de": "German - Deutsch",
+    "pt": "Portuguese - Português",
+    "zh": "Simplified Chinese - 简体中文",
+    "ja": "Japanese - 日本語",
+    "ko": "Korean - 한국어",
+    "ru": "Russian - Русский",
+    "ar": "Arabic - العربية",
+    "hi": "Hindi - हिन्दी",
+    "tr": "Turkish - Türkçe",
+    "nl": "Dutch - Nederlands",
+    "pl": "Polish - Polski",
+}
+
+preferred_language = ""
+if ai_lang:
+    norm_lang = ai_lang.lower().strip()
+    preferred_language = LANG_MAP.get(norm_lang, ai_lang)
+    print(f"[Init] Preferred language configured: {preferred_language}")
 
 # ── 1. Patch Cline package.json: Move to Secondary Side Bar & Enable Auto-Activate ──
 for pkg_path in glob.glob(os.path.join(home, ".vscode/extensions/saoudrizwan.claude-dev-*/package.json")):
@@ -162,15 +211,30 @@ except Exception as e:
     print(f"[Init] Warning: Could not write Cline providers.json: {e}")
 
 try:
-    with open(os.path.join(cline_settings_dir, "global-settings.json"), "w", encoding="utf-8") as f:
-        json.dump({
-            "telemetryOptOut": True,
-            "autoUpdateEnabled": False,
-            "planActMode": "act",
-            "toolAutoApprove": True,
-            "mcpEnabled": True,
-            "mcpDisplayMode": "rich"
-        }, f, indent=2)
+    g_settings_path = os.path.join(cline_settings_dir, "global-settings.json")
+    g_settings = {}
+    if os.path.exists(g_settings_path):
+        try:
+            with open(g_settings_path, "r", encoding="utf-8") as f:
+                g_settings = json.load(f)
+        except Exception:
+            g_settings = {}
+    g_settings.update({
+        "telemetryOptOut": True,
+        "autoUpdateEnabled": False,
+        "planActMode": "act",
+        "toolAutoApprove": True,
+        "vscodeTerminalExecutionMode": "backgroundExec",
+        "terminalExecutionMode": "backgroundExec",
+        "backgroundEditEnabled": True,
+        "mcpEnabled": True,
+        "mcpDisplayMode": "rich"
+    })
+    if preferred_language:
+        g_settings["preferredLanguage"] = preferred_language
+        
+    with open(g_settings_path, "w", encoding="utf-8") as f:
+        json.dump(g_settings, f, indent=2)
 except Exception as e:
     pass
 
@@ -219,6 +283,9 @@ gs.update({
     "actModeApiProvider": "openai",
     "apiProvider": "openai",
     "telemetrySetting": "disabled",
+    "vscodeTerminalExecutionMode": "backgroundExec",
+    "terminalExecutionMode": "backgroundExec",
+    "backgroundEditEnabled": True,
     "mcpEnabled": True,
     "mcpDisplayMode": "rich",
     "autoApprovalSettings": auto_approval,
@@ -235,6 +302,8 @@ gs["planModeOpenAiModelId"] = "visualvibe-plan"
 gs["actModeOpenAiModelId"] = "visualvibe-act"
 gs["planModeApiModelId"] = "visualvibe-plan"
 gs["actModeApiModelId"] = "visualvibe-act"
+if preferred_language:
+    gs["preferredLanguage"] = preferred_language
 
 try:
     with open(gs_path, "w", encoding="utf-8") as f:
@@ -339,6 +408,12 @@ try:
         "saoudrizwan.claude-dev.mcpEnabled": json.dumps(True),
         "mcpDisplayMode": json.dumps("rich"),
         "saoudrizwan.claude-dev.mcpDisplayMode": json.dumps("rich"),
+        "vscodeTerminalExecutionMode": json.dumps("backgroundExec"),
+        "saoudrizwan.claude-dev.vscodeTerminalExecutionMode": json.dumps("backgroundExec"),
+        "terminalExecutionMode": json.dumps("backgroundExec"),
+        "saoudrizwan.claude-dev.terminalExecutionMode": json.dumps("backgroundExec"),
+        "backgroundEditEnabled": "true",
+        "saoudrizwan.claude-dev.backgroundEditEnabled": "true",
 
         # API Configuration
         "apiProvider": json.dumps("openai"),
@@ -350,30 +425,51 @@ try:
         "apiConfiguration": json.dumps(api_config),
         "saoudrizwan.claude-dev.apiConfiguration": json.dumps(api_config),
 
-        # Extension global state blob
-        "saoudrizwan.claude-dev": json.dumps({
-            "welcomeViewCompleted": True,
-            "isNewUser": False,
-            "apiProvider": "openai",
-            "planModeApiProvider": "openai",
-            "actModeApiProvider": "openai",
-            "mode": "act",
-            "telemetrySetting": "disabled",
-            "mcpEnabled": True,
-            "mcpDisplayMode": "rich",
-            "lastShownAnnouncementId": "4.1.21",
-            "planActSeparateModelsSetting": True,
-            "openAiModelId": "visualvibe-act",
-            "planModeOpenAiModelId": "visualvibe-plan",
-            "actModeOpenAiModelId": "visualvibe-act"
-        }),
-
-        # Layout: Auxiliary bar (Secondary Side Bar on the right)
-        "workbench.auxiliarybar.pinnedPanels": json.dumps(pinned_panels),
-        "workbench.auxiliarybar.activepanelid": json.dumps(aux_panel_id),
-        "workbench.auxiliarybar.hidden": "false",
-        "welcomeOnboarding.state": "true"
+        # Extension global state blob will be merged and added later below
     }
+
+    # Fetch existing extension state from DB to avoid overwriting user settings
+    ext_blob = {}
+    try:
+        cur.execute("SELECT value FROM ItemTable WHERE key = 'saoudrizwan.claude-dev'")
+        row = cur.fetchone()
+        if row and row[0]:
+            ext_blob = json.loads(row[0])
+    except Exception:
+        pass
+
+    ext_blob.update({
+        "welcomeViewCompleted": True,
+        "isNewUser": False,
+        "apiProvider": "openai",
+        "planModeApiProvider": "openai",
+        "actModeApiProvider": "openai",
+        "mode": "act",
+        "telemetrySetting": "disabled",
+        "vscodeTerminalExecutionMode": "backgroundExec",
+        "terminalExecutionMode": "backgroundExec",
+        "backgroundEditEnabled": True,
+        "mcpEnabled": True,
+        "mcpDisplayMode": "rich",
+        "lastShownAnnouncementId": "4.1.21",
+        "planActSeparateModelsSetting": True,
+        "openAiModelId": "visualvibe-act",
+        "planModeOpenAiModelId": "visualvibe-plan",
+        "actModeOpenAiModelId": "visualvibe-act"
+    })
+
+    # Layout: Auxiliary bar (Secondary Side Bar on the right)
+    items["workbench.auxiliarybar.pinnedPanels"] = json.dumps(pinned_panels)
+    items["workbench.auxiliarybar.activepanelid"] = json.dumps(aux_panel_id)
+    items["workbench.auxiliarybar.hidden"] = "false"
+    items["welcomeOnboarding.state"] = "true"
+
+    if preferred_language:
+        items["preferredLanguage"] = json.dumps(preferred_language)
+        items["saoudrizwan.claude-dev.preferredLanguage"] = json.dumps(preferred_language)
+        ext_blob["preferredLanguage"] = preferred_language
+
+    items["saoudrizwan.claude-dev"] = json.dumps(ext_blob)
 
     if api_url:
         items["openAiBaseUrl"] = json.dumps(api_url)
@@ -400,12 +496,12 @@ try:
     print("[Init] Cline state & layout pre-configured in state.vscdb.")
 except Exception as e:
     print(f"[Init] Warning: Could not configure Cline state DB: {e}")
-' 2>/dev/null || true
+PYEOF
 
 
 # ── 6. Pre-configure VS Code settings and keybindings ───────────────────────
 mkdir -p /home/vvagent/.config/Code/User
-python3 -c '
+python3 << 'PYEOF'
 import json, os
 
 home = "/home/vvagent"
@@ -436,8 +532,32 @@ current.update({
     "chat.agent.enabled": False,
     "chat.welcomePage.signIn.enabled": False,
     "chat.titleBar.signIn.enabled": False,
-    "github.copilot.enable": {"*": False}
+    "github.copilot.enable": {"*": False},
+    "cline.vscodeTerminalExecutionMode": "backgroundExec",
+    "cline.terminalExecutionMode": "backgroundExec",
+    "cline.backgroundEditEnabled": True
 })
+
+ai_lang = os.environ.get("AI_LANG", "").strip()
+if ai_lang:
+    lang_map = {
+        "en": "English",
+        "it": "Italian - Italiano",
+        "es": "Spanish - Español",
+        "fr": "French - Français",
+        "de": "German - Deutsch",
+        "pt": "Portuguese - Português",
+        "zh": "Simplified Chinese - 简体中文",
+        "ja": "Japanese - 日本語",
+        "ko": "Korean - 한국어",
+        "ru": "Russian - Русский",
+        "ar": "Arabic - العربية",
+        "hi": "Hindi - हिन्दी",
+        "tr": "Turkish - Türkçe",
+        "nl": "Dutch - Nederlands",
+        "pl": "Polish - Polski",
+    }
+    current["cline.preferredLanguage"] = lang_map.get(ai_lang.lower().strip(), ai_lang)
 
 with open(settings_path, "w", encoding="utf-8") as f:
     json.dump(current, f, indent=2)
@@ -456,7 +576,7 @@ keybindings = [
 ]
 with open(keybindings_path, "w", encoding="utf-8") as f:
     json.dump(keybindings, f, indent=2)
-' 2>/dev/null || true
+PYEOF
 
 # Clean up any residual Copilot and chat feature directories
 rm -rf /usr/share/code/resources/app/extensions/copilot \

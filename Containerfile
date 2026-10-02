@@ -151,7 +151,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh \
 # FIX B-03: removed '|| true' — branding failure is a build error, not a warning.
 # If brand_kasmvnc.py fails, the marker file won't exist, making the failure obvious.
 RUN python3 /etc/visualvibe/scripts/brand_kasmvnc.py \
-    && test -f /usr/share/kasmvnc/www/assets/.visualvibe_branded
+    && test -f /usr/share/kasmvnc/www/assets/.visualvibe_branded \
+    && rm -rf /etc/visualvibe/scripts/__pycache__
 
 # 13. Expose KasmVNC Web UI (8080) and FileBrowser (8081)
 EXPOSE 8080 8081

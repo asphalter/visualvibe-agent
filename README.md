@@ -19,6 +19,8 @@ VisualVibe Agent is a containerized, web-native development environment running 
   - Official Microsoft VS Code RPM pre-configured with custom title and styling.
   - **Cline AI extension** (`saoudrizwan.claude-dev`) pre-installed.
   - Agnostic AI backend connectivity dynamically configurable via environment variables (`AI_API_URL`, `AI_API_KEY`).
+  - Terminal Execution Mode pre-configured to **Background Exec** for reliable non-blocking command execution.
+  - Editor mode pre-configured with **Background Edit** enabled to allow edits without stealing editor focus.
 - **Web File Management**: **FileBrowser Quantum** on port `8081` (`/filebrowser/`) with one-click sidebar transition.
 - **Rootless Podman-in-Podman**: Nested container capabilities inside the development container (`/dev/fuse` + `fuse-overlayfs`).
 - **Zero Startup Updates**: Immutable, build-time compilation for instant startup and total reproducibility.
@@ -60,14 +62,43 @@ VisualVibe Agent/
 
 ## ⚙️ Configuration & Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `AI_API_URL` | *(empty)* | Base URL for the external AI API endpoint (OpenAI-compatible, e.g. OmniRoute) |
-| `AI_API_KEY` | *(empty)* | Optional API key for authenticating against the AI endpoint |
-| `VISUALVIBE_PORT` | `8080` | Host port for the KasmVNC Web Desktop |
-| `VISUALVIBE_FB_PORT` | `8081` | Host port for FileBrowser Quantum |
-| `VISUALVIBE_CONTAINER`| `visualvibe-agent` | Name of the running container instance |
-| `VISUALVIBE_VOLUME` | `visualvibe-home` | Podman persistent volume name |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AI_API_URL` | **Yes** | — | Base URL for the external AI API endpoint (OpenAI-compatible, e.g. OmniRoute) |
+| `AI_API_KEY` | **Yes** | — | API key for authenticating against the AI endpoint |
+| `AI_LANG` | **Yes** | — | Sets Cline's native **Preferred Language** via ISO code (e.g. `it`, `en`, `es`). See [Supported AI Languages](#-supported-ai-languages). |
+| `VISUALVIBE_PORT` | No | `8080` | Host port for the KasmVNC Web Desktop |
+| `VISUALVIBE_FB_PORT` | No | `8081` | Host port for FileBrowser Quantum |
+| `VISUALVIBE_CONTAINER`| No | `visualvibe-agent` | Name of the running container instance |
+| `VISUALVIBE_VOLUME` | No | `visualvibe-home` | Podman persistent volume name |
+
+> ⚠️ **Mandatory Variables:** The container strictly validates `AI_LANG`, `AI_API_KEY`, and `AI_API_URL` on startup. If any of these variables are unset or empty, the container will immediately abort execution with a fatal error indicating which variables are missing.
+
+
+### 🌐 Supported AI Languages (`AI_LANG`)
+
+The `AI_LANG` environment variable configures Cline's native **Preferred Language** (found in *Settings ⚙️ → General Settings*). You can supply standard ISO 639-1 language codes:
+
+| `AI_LANG` Code | Language in Cline |
+|---|---|
+| `en` | English *(default)* |
+| `it` | Italian - Italiano |
+| `es` | Spanish - Español |
+| `fr` | French - Français |
+| `de` | German - Deutsch |
+| `pt` | Portuguese - Português |
+| `zh` | Simplified Chinese - 简体中文 |
+| `ja` | Japanese - 日本語 |
+| `ko` | Korean - 한국어 |
+| `ru` | Russian - Русский |
+| `ar` | Arabic - العربية |
+| `hi` | Hindi - हिन्दी |
+| `tr` | Turkish - Türkçe |
+| `nl` | Dutch - Nederlands |
+| `pl` | Polish - Polski |
+
+> *Note: `AI_LANG` is required (e.g. `en`, `it`, `es`). Any exact label or unmapped string passed to `AI_LANG` will be passed directly to Cline's configuration.*
+
 
 ### Cline AI Model Routing
 
